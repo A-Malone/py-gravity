@@ -84,7 +84,7 @@ class GravSim(threading.Thread):
 
         #Load Body information
         for index,body in enumerate(json_data["bodies"]):
-            self.hostState.add_body( Body(index+1, body) )
+            self.hostState.add_body( Body(index, body) )
 
         #Setup and start the clock
         self.clock = pygame.time.Clock()
@@ -96,7 +96,7 @@ class GravSim(threading.Thread):
         while(not self.stopped):
 
             #Tell the device to perform the step
-            self.deviceState.step(self.dt)
+            self.deviceState.step(self.dt, self.G)
 
             #Get the host lock and copy over the new information
             with self.phys_lock:
@@ -145,7 +145,7 @@ class Camera(object):
             pygame.draw.circle(win, (255, 255, 255),
                 (int(draw_pos[0]),
                 int(draw_pos[1])),
-                int(p.radius*self._zm), 0)
+                int(body.radius*self._zm), 0)
 
 def main():
     global WIDTH, HEIGHT, HEIGHTD2, WIDTHD2, DT, DRAW_SCALE

@@ -6,13 +6,10 @@ The back-end for the gravity simulator
 
 #IMPORTS
 import pycuda.gpuarray as gpuarray
-from pycuda.reduction import ReductionKernel
 import pycuda.driver as drv
-import pycuda.autoinit
+import pycuda.tools as tools
 import numpy as np
 
-#import scikits.cuda.linalg as linalg
-#import scikits.cuda.misc as cumisc
 from scikits.cuda.cublas import *
 
 from pycuda.compiler import SourceModule
@@ -20,7 +17,7 @@ from pycuda.compiler import SourceModule
 #GLOBALS
 THETA = np.float32(1.0/(2-2**(1/3.0)))
 N = np.int32(100)
-G = np.float32(6.667*10**(-11))
+G_norm = np.float32(6.667*10**(-11))
 
 
 class Body(object):
@@ -37,7 +34,7 @@ class Body(object):
         return 'ID:{ID} Name:{name} radius:{r}'.format(ID=self.obj_id, name=self.name, r=self.radius)
 
     def position(self, positions):
-        return positions[self.obj_id].tolist()
+        return positions[self.obj_id]
 
 
 class State(object):
@@ -72,14 +69,19 @@ class HostState(State):
 class DeviceState(State):
     """Represents the physical state of the system on the device"""
 
-    block_params = (128,16,1)
+    #For the acceleration kernel
+    get_accelerations = None
+    block_params = (400,1,1)
     grid_params = (16,1)
 
     a_vec_temp = None
 
+    import pycuda.autoinit
+
 
     def __init__(self, mass, pos, vel):
         super(State, self).__init__()
+
         self.mass = gpuarray.to_gpu(mass)
         self.pos = gpuarray.to_gpu(pos)
         self.vel = gpuarray.to_gpu(vel)
@@ -90,25 +92,27 @@ class DeviceState(State):
 
         #Import the acceleration kernel
         with open("./accel_kernel.cu", "r") as f:
-            module = SourceModule(f.read())
+            self.module = SourceModule(f.read())
+        self.get_accelerations = self.module.get_function("get_accelerations")
 
-        #ACCELERATION
-        self.get_accelerations = module.get_function("get_accelerations")
+
+
 
     def __del__(self):#
         #CLEANUP LINEAR ALGEBRA
         cublasDestroy(self.h)
 
-    def configure_settings(self):
-        pass
-
+        #Clean up variables
+        del self.mass
+        del self.pos
+        del self.vel
 
     def sync_with_host(self, hstate):
         self.mass = hstate.mass
         self.pos = gpuarray.to_gpu(hstate.pos)
         self.vel = gpuarray.to_gpu(hstate.vel)
 
-    def step(self, dt):
+    def step(self, dt, G):
         """
         Steps the system forward by dt using a 4th order forrest-ruth
         symplectic integrator.
@@ -154,10 +158,13 @@ def main():
     pos = np.random.randn(3*N).reshape(N,3).astype(np.float32)
     vel = np.random.randn(3*N).reshape(N,3).astype(np.float32)
 
+    print("Creating objects")
     hs = HostState(mass, pos, vel)
     ds = DeviceState(mass, pos, vel)
+    print("Created objects")
 
-    ds.step(np.float32(0.1))
+    ds.step(np.float32(0.1), G_norm)
+    print(ds.pos.get())
 
 def test_cuda():
     mass = np.random.randn(3*N).astype(np.float32)
