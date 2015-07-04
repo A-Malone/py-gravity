@@ -17,13 +17,6 @@ from scikits.cuda.cublas import *
 
 from pycuda.compiler import SourceModule
 
-#Import the acceleration kernel
-with open("./accel_kernel.cu", "r") as f:
-    module = SourceModule(f.read())
-
-#INITIALIZE LINEAR ALGEBRA
-h = cublasCreate()
-
 #GLOBALS
 THETA = np.float32(1.0/(2-2**(1/3.0)))
 N = np.int32(100)
@@ -37,8 +30,8 @@ class Body(object):
     """
     def __init__(self, obj_id, json_data):
         self.obj_id = obj_id
-        self.name = body["name"]
-        self.radius = body["radius"]
+        self.name = json_data["name"]
+        self.radius = json_data["radius"]
 
     def __repr__(self):
         return 'ID:{ID} Name:{name} radius:{r}'.format(ID=self.obj_id, name=self.name, r=self.radius)
@@ -79,10 +72,8 @@ class HostState(State):
 class DeviceState(State):
     """Represents the physical state of the system on the device"""
 
-    #ACCELERATION
-    get_accelerations = module.get_function("get_accelerations")
-    block_params = (400,1,1)
-    grid_params = (1,1)
+    block_params = (128,16,1)
+    grid_params = (16,1)
 
     a_vec_temp = None
 
@@ -93,6 +84,24 @@ class DeviceState(State):
         self.pos = gpuarray.to_gpu(pos)
         self.vel = gpuarray.to_gpu(vel)
         self.a_vec_temp = np.zeros_like(pos)
+
+        #INITIALIZE LINEAR ALGEBRA
+        self.h = cublasCreate()
+
+        #Import the acceleration kernel
+        with open("./accel_kernel.cu", "r") as f:
+            module = SourceModule(f.read())
+
+        #ACCELERATION
+        self.get_accelerations = module.get_function("get_accelerations")
+
+    def __del__(self):#
+        #CLEANUP LINEAR ALGEBRA
+        cublasDestroy(self.h)
+
+    def configure_settings(self):
+        pass
+
 
     def sync_with_host(self, hstate):
         self.mass = hstate.mass
@@ -106,28 +115,28 @@ class DeviceState(State):
         """
 
         #body.loc = body.loc +          THETA  * dt/2 * body.vel
-        saxpy(THETA*dt/2 , self.vel, self.pos)
+        self.saxpy(THETA*dt/2 , self.vel, self.pos)
 
         #body.vel = body.vel +          THETA  * dt   * self.acceleration(body.loc, body, states)
         a_vec = self.acceleration(self.pos)
-        saxpy(THETA*dt*G , a_vec, self.vel)
+        self.saxpy(THETA*dt*G , a_vec, self.vel)
 
         #body.loc = body.loc + (1   -   THETA) * dt/2 * body.vel
-        saxpy((1-THETA)*dt/2 , self.vel, self.pos)
+        self.saxpy((1-THETA)*dt/2 , self.vel, self.pos)
 
         #body.vel = body.vel + (1   - 2*THETA) * dt   * self.acceleration(body.loc, body, states)
         a_vec = self.acceleration(self.pos)
-        saxpy((1-2*THETA)*dt*G , a_vec, self.vel)
+        self.saxpy((1-2*THETA)*dt*G , a_vec, self.vel)
 
         #body.loc = body.loc + (1   -   THETA) * dt/2 * body.vel
-        saxpy((1-THETA)*dt/2 , self.vel, self.pos)
+        self.saxpy((1-THETA)*dt/2 , self.vel, self.pos)
 
         #body.vel = body.vel +          THETA  * dt   * self.acceleration(body.loc, body, states)
         a_vec = self.acceleration(self.pos)
-        saxpy(THETA*dt*G , a_vec, self.vel)
+        self.saxpy(THETA*dt*G , a_vec, self.vel)
 
         #body.loc = body.loc +          THETA  * dt/2 * body.vel
-        saxpy(THETA*dt/2 , self.vel, self.pos)
+        self.saxpy(THETA*dt/2 , self.vel, self.pos)
 
     def acceleration(self, pos):
         """Gets the acceleration for a given position matrix, and stores it in a_vec"""
@@ -136,8 +145,8 @@ class DeviceState(State):
             block=self.block_params, grid=self.grid_params)
         return gpuarray.to_gpu(self.a_vec_temp)
 
-def saxpy(a,x,y,xs=1,ys=1):
-    cublasSaxpy(h, y.size, a, x.gpudata, xs, y.gpudata, ys)
+    def saxpy(self,a,x,y,xs=1,ys=1):
+        cublasSaxpy(self.h, y.size, a, x.gpudata, xs, y.gpudata, ys)
 
 
 def main():
@@ -170,4 +179,3 @@ def test_cuda():
     print(ds.pos.get())
 
 main()
-cublasDestroy(h)
