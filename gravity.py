@@ -9,7 +9,7 @@ from collections import defaultdict
 #BACKEND
 import numpy as np
 import json
-from grav_utils import HostState, DeviceState, Body
+from gravutils.host import HostState, Body
 
 
 #----WINDOW PARAMETERS
@@ -76,11 +76,8 @@ class GravSim(threading.Thread):
         vel = np.asarray(json_data["posvel"])[:,3:].astype(np.float32)
         mass = np.asarray(json_data["mass"]).astype(np.float32)
 
-        print(pos)
-
-        #Setup the state objects
+        #Setup the host state object
         self.hostState = HostState(mass,pos,vel)
-        self.deviceState = DeviceState(mass,pos,vel)
 
         #Load Body information
         for index,body in enumerate(json_data["bodies"]):
@@ -92,6 +89,10 @@ class GravSim(threading.Thread):
 
 
     def run(self):
+        from gravutils.device import DeviceState
+        #Setup the device state wholly within the simulator thread
+        self.deviceState = DeviceState.from_host_state(self.hostState)
+
         print("Starting physics simulator")
         while(not self.stopped):
 
