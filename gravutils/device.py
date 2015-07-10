@@ -1,12 +1,12 @@
 #IMPORTS
 from host import State, HostState
 
+import numpy as np
+
 import pycuda.gpuarray as gpuarray
 import pycuda.driver as drv
 import pycuda.tools as tools
 import pycuda.autoinit
-import numpy as np
-
 from scikits.cuda.cublas import *
 from pycuda.compiler import SourceModule
 
