@@ -24,39 +24,39 @@
         },
         {
             "name":"Mercury",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Venus",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Earth",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Mars",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Jupiter",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Saturn",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Neptune",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Uranus",
-            "radius":10
+            "radius":2
         },
         {
             "name":"Pluto",
-            "radius":10
+            "radius":2
         }
     ]
 }

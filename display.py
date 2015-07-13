@@ -19,6 +19,9 @@ WIDTHD2, HEIGHTD2 = WIDTH/2., HEIGHT/2.
 #----DRAWING SCALE
 DRAW_SCALE = 0.1
 
+#----ANTIALIASING
+AA = False
+
 #------------------------------------------------------------------------
 #--------------------------CAMERA CLASS----------------------------------
 #------------------------------------------------------------------------
@@ -52,10 +55,14 @@ class Camera(object):
     def draw_objects(self, hs, pygame, win):
         for body in hs.get_bodies():
             draw_pos = self.location_to_pixels(body.position(hs.pos))
-            pygame.draw.circle(win, (255, 255, 255),
-                (int(draw_pos[0]),
-                int(draw_pos[1])),
-                int(body.radius*self._zm), 0)
+            x = (int(draw_pos[0])
+            y = (int(draw_pos[1])
+            z = int(body.radius*self._zm)
+            if(AA):
+                pygame.gfxdraw.aacircle(surf, x, y, 30, (255, 0, 0))
+                pygame.gfxdraw.filled_circle(surf, x, y, 30, (255, 0, 0))
+            else:
+                pygame.draw.circle(win, (255, 255, 255), x,y, z, 0)
 
 
 class SimRenderer(threading.Thread):

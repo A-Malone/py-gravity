@@ -1,9 +1,6 @@
 from gravutils.simulator import GravSim
 from display import SimRenderer
 
-
-
-
 def main():
     simulator = GravSim()
     renderer = SimRenderer(simulator)

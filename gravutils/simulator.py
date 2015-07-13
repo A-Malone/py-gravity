@@ -16,7 +16,10 @@ class GravSim(object):
     LENGTH_SCALE = 149597870.700    #m/LU
     TIME_SCALE = 60.0               #s/Tu
 
-    DT = 5  #1 hour timestep
+    #----CONSTANTS
+    AU = 149597870700.0    #m/AU
+
+    DT = 360  #1 hour timestep
 
     #----CONSTANTS
     AU = 149597870700.0    #m/AU
@@ -36,7 +39,7 @@ class GravSim(object):
         #Timstep
         self.dt = timestep or self.DT
 
-        self.G = 6.67*10**(-11) * self.MASS_SACLE / self.LENGTH_SCALE **3 * (self.TIME_SCALE)**2 #(LU)^3/(MU)/(TU)^2
+        self.G = np.float32(6.67*10**(-11) * self.MASS_SACLE / self.LENGTH_SCALE **3 * (self.TIME_SCALE)**2) #(LU)^3/(MU)/(TU)^2
 
         #----SET UP SIMLUATOR
 
@@ -47,9 +50,11 @@ class GravSim(object):
             json_data = json.load(fp)
 
         #Load data from the file
-        pos = np.asarray(json_data["posvel"])[:,:3].astype(np.float32)
-        vel = np.asarray(json_data["posvel"])[:,3:].astype(np.float32)
+        pos = np.asarray(json_data["posvel"])[:,:3].astype(np.float32) * self.AU / self.LENGTH_SCALE
+        vel = np.asarray(json_data["posvel"])[:,3:].astype(np.float32) * self.AU / self.LENGTH_SCALE / 24.0 / 60.0 / (60 / self.TIME_SCALE)
         mass = np.asarray(json_data["mass"]).astype(np.float32)
+        print(pos)
+        print(vel)
 
         #Setup the host state object
         self.hostState = HostState(mass,pos,vel)
