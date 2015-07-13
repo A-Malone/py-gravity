@@ -4,6 +4,7 @@ import time
 
 #INTERFACE
 import pygame
+import pygame.gfxdraw
 from collections import defaultdict
 import threading
 
@@ -20,7 +21,7 @@ WIDTHD2, HEIGHTD2 = WIDTH/2., HEIGHT/2.
 DRAW_SCALE = 0.1
 
 #----ANTIALIASING
-AA = False
+AA = True
 
 #------------------------------------------------------------------------
 #--------------------------CAMERA CLASS----------------------------------
@@ -52,17 +53,17 @@ class Camera(object):
         # return np.array([WIDTHD2,HEIGHTD2]) + zoom*(loc*DRAW_SCALE - np.array([WIDTHD2,HEIGHTD2]))
         return (location[:2]*self._sc - self.loc[:2])*self._zm + self.dim2 #Relative to center
 
-    def draw_objects(self, hs, pygame, win):
+    def draw_objects(self, win, hs, pygame):
         for body in hs.get_bodies():
             draw_pos = self.location_to_pixels(body.position(hs.pos))
-            x = (int(draw_pos[0])
-            y = (int(draw_pos[1])
-            z = int(body.radius*self._zm)
+            x = int(draw_pos[0])
+            y = int(draw_pos[1])
+            r = int(body.radius*self._zm)
             if(AA):
-                pygame.gfxdraw.aacircle(surf, x, y, 30, (255, 0, 0))
-                pygame.gfxdraw.filled_circle(surf, x, y, 30, (255, 0, 0))
+                pygame.gfxdraw.aacircle(win, x, y, r, (255, 255, 255))
+                pygame.gfxdraw.filled_circle(win, x, y, r, (255, 255, 255))
             else:
-                pygame.draw.circle(win, (255, 255, 255), x,y, z, 0)
+                pygame.draw.circle(win, (255, 255, 255), (x, y), r, 0)
 
 
 class SimRenderer(threading.Thread):
@@ -105,7 +106,7 @@ class SimRenderer(threading.Thread):
 
             #Drawing of the bodies
             with self.sim.phys_lock:
-                self.camera.draw_objects(self.sim.hostState, pygame, win)
+                self.camera.draw_objects(win, self.sim.hostState, pygame)
 
             # Zoom in/out
             win.unlock()
