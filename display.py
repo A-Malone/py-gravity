@@ -17,6 +17,9 @@ from gravutils.host import HostState, Body
 WIDTH, HEIGHT = 900, 600
 WIDTHD2, HEIGHTD2 = WIDTH/2., HEIGHT/2.
 
+import euclid
+from euclid import Matrix4
+
 #----DRAWING SCALE
 DRAW_SCALE = 0.1
 
@@ -28,30 +31,65 @@ AA = True
 #------------------------------------------------------------------------
 class Camera(object):
     """ The class for the camera """
+
+    s_dir = np.array([0,0,-1])
+    _zm  = 1
+    theta = 0
+    phi = 0
+
+    rotm = np.zeros((4,4))
+
     def __init__(self, loc, dim2, scale):
 
         #Position and direction of camera
         self.loc = loc
-        self.dir = np.array([0,0,-1])
+        self.dir = self.s_dir
 
         self.dim2 = dim2
         self._sc = scale
-        self._zm  = 1
-        self.theta = 0;
-        self.phi = 0;
+
+        self.update_projection()
 
     def translate(self, dp):
         self.loc += dp
+        self.update_projection()
 
     def scale(self, zoom):
         self._zm *= zoom
 
     def project(self, location):
-        proj = np.dot(self.dir, location)/np.linalg.norm(self.dir)**2*self.dir
+        #proj = np.dot(self.dir, location)/np.linalg.norm(self.dir)**2*self.dir
+        return np.dot(self.rotm, np.resize(location,(4,1)))
 
     def location_to_pixels(self, location):
+        #print(self.project(location))
         # return np.array([WIDTHD2,HEIGHTD2]) + zoom*(loc*DRAW_SCALE - np.array([WIDTHD2,HEIGHTD2]))
         return (location[:2]*self._sc - self.loc[:2])*self._zm + self.dim2 #Relative to center
+
+    def update_projection(self):
+        # from http://www.euclideanspace.com/
+        ch = math.cos(self.theta)
+        sh = math.sin(self.theta)
+        ca = math.cos(self.phi)
+        sa = math.sin(self.phi)
+        cb = 1
+        sb = 0
+
+        self.rotm[0,0] = ch * ca
+        self.rotm[0,1] = sh * sb - ch * sa * cb
+        self.rotm[0,2] = ch * sa * sb + sh * cb
+        self.rotm[0,3] = self.loc[0]
+
+        self.rotm[1,0] = sa
+        self.rotm[1,1] = ca * cb
+        self.rotm[1,2] = -ca * sb
+        self.rotm[1,3] = self.loc[1]
+
+        self.rotm[2,0] = -sh * ca
+        self.rotm[2,1] = sh * sa * cb + ch * sb
+        self.rotm[2,2] = -sh * sa * sb + ch * cb
+        self.rotm[2,3] = self.loc[2]
+
 
     def draw_objects(self, win, hs, pygame):
         for body in hs.get_bodies():
@@ -63,7 +101,7 @@ class Camera(object):
                 pygame.gfxdraw.aacircle(win, x, y, r, (255, 255, 255))
                 pygame.gfxdraw.filled_circle(win, x, y, r, (255, 255, 255))
             else:
-                pygame.draw.circle(win, (255, 255, 255), (x, y), r, 0)
+                pygame.draw.circle(win, (255, 255, 255), (x, y), z, 0)
 
 
 class SimRenderer(threading.Thread):
